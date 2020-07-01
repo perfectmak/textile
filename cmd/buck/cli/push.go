@@ -15,7 +15,7 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/textileio/textile/api/buckets/client"
-	bucks "github.com/textileio/textile/buckets"
+	"github.com/textileio/textile/buckets"
 	"github.com/textileio/textile/buckets/local"
 	"github.com/textileio/textile/cmd"
 )
@@ -53,10 +53,10 @@ var bucketPushCmd = &cobra.Command{
 		}
 		if force {
 			// Reset the archive to just the seed file
-			seed := filepath.Join(root, bucks.SeedName)
+			seed := filepath.Join(root, buckets.SeedName)
 			ctx, acancel := context.WithTimeout(context.Background(), cmd.Timeout)
 			defer acancel()
-			if err = buck.SaveFile(ctx, seed, bucks.SeedName); err != nil {
+			if err = buck.SaveFile(ctx, seed, buckets.SeedName); err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
 					cmd.Fatal(err)
 				}
@@ -176,7 +176,7 @@ func addFile(key string, xroot path.Resolved, name, filePath string, force bool)
 	}
 	added, root, err = clients.Buckets.PushPath(ctx, key, filePath, file, opts...)
 	if err != nil {
-		if strings.HasSuffix(err.Error(), bucks.ErrNonFastForward.Error()) {
+		if strings.HasSuffix(err.Error(), buckets.ErrNonFastForward.Error()) {
 			cmd.Fatal(errors.New(nonFastForwardMsg), aurora.Cyan("buck pull"))
 		} else {
 			cmd.Fatal(err)
@@ -196,7 +196,7 @@ func rmFile(key string, xroot path.Resolved, filePath string, force bool) path.R
 	}
 	root, err := clients.Buckets.RemovePath(ctx, key, filePath, opts...)
 	if err != nil {
-		if strings.HasSuffix(err.Error(), bucks.ErrNonFastForward.Error()) {
+		if strings.HasSuffix(err.Error(), buckets.ErrNonFastForward.Error()) {
 			cmd.Fatal(errors.New(nonFastForwardMsg), aurora.Cyan("buck pull"))
 		} else if !strings.HasSuffix(err.Error(), "no link by that name") {
 			cmd.Fatal(err)

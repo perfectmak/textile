@@ -27,7 +27,7 @@ func WithPrivate(private bool) InitOption {
 	}
 }
 
-// WithCid indicates that a inited bucket should be boostraped
+// WithCid indicates that an inited bucket should be boostraped
 // with a particular UnixFS DAG.
 func WithCid(c cid.Cid) InitOption {
 	return func(args *initOptions) {

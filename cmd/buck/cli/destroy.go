@@ -7,7 +7,7 @@ import (
 	"github.com/logrusorgru/aurora"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
-	bucks "github.com/textileio/textile/buckets"
+	"github.com/textileio/textile/buckets"
 	"github.com/textileio/textile/cmd"
 )
 
@@ -42,7 +42,7 @@ var bucketDestroyCmd = &cobra.Command{
 			cmd.Fatal(err)
 		}
 
-		_ = os.RemoveAll(filepath.Join(root, bucks.SeedName))
+		_ = os.RemoveAll(filepath.Join(root, buckets.SeedName))
 		_ = os.RemoveAll(filepath.Join(root, config.Dir))
 		cmd.Success("Your bucket has been deleted")
 	},

@@ -7,7 +7,6 @@ import (
 	"github.com/logrusorgru/aurora"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	pb "github.com/textileio/textile/api/buckets/pb"
 	"github.com/textileio/textile/buckets/local"
 	"github.com/textileio/textile/cmd"
 	"github.com/textileio/uiprogress"
@@ -43,6 +42,8 @@ var (
 	}
 
 	clients *cmd.Clients
+
+	buck *local.Buckets
 
 	addFileTimeout = time.Hour * 24
 	getFileTimeout = time.Hour * 24
@@ -90,10 +91,14 @@ func Config() cmd.Config {
 }
 
 func SetClients(c *cmd.Clients) {
-	clients = c
+	var err error
+	buck, err = local.NewBuckets(config, c)
+	if err != nil {
+		cmd.Fatal(err)
+	}
 }
 
-func printLinks(reply *pb.LinksReply) {
+func printLinks(reply local.Links) {
 	cmd.Message("Your bucket links:")
 	cmd.Message("%s Thread link", aurora.White(reply.URL).Bold())
 	cmd.Message("%s IPNS link (propagation can be slow)", aurora.White(reply.IPNS).Bold())

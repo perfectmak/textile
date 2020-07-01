@@ -14,9 +14,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
-	"github.com/textileio/textile/api/buckets/client"
+	bc "github.com/textileio/textile/api/buckets/client"
 	"github.com/textileio/textile/api/common"
-	bucks "github.com/textileio/textile/buckets"
+	"github.com/textileio/textile/buckets"
 	"github.com/textileio/textile/buckets/local"
 	"github.com/textileio/textile/cmd"
 	"github.com/textileio/textile/util"
@@ -44,18 +44,7 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 		cmd.ExpandConfigVars(config.Viper, config.Flags)
 	},
 	Run: func(c *cobra.Command, args []string) {
-		root, err := os.Getwd()
-		if err != nil {
-			cmd.Fatal(err)
-		}
-		dir := filepath.Join(root, config.Dir)
-		if err = os.MkdirAll(dir, os.ModePerm); err != nil {
-			cmd.Fatal(err)
-		}
-		filename := filepath.Join(dir, config.Name+".yml")
-		if _, err := os.Stat(filename); err == nil {
-			cmd.Fatal(fmt.Errorf("bucket %s is already initialized", root))
-		}
+		bucks := local.NewBuckets(config, clients)
 
 		bootCid, err := c.Flags().GetString("cid")
 		if err != nil {
@@ -65,34 +54,18 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 		if err != nil {
 			cmd.Fatal(err)
 		}
-
 		if bootCid != "" && existing {
 			cmd.Fatal(errors.New("only one of --cid and --existing flags can be used at the same time"))
 		}
 
 		if existing {
-			threads := clients.ListThreads(true)
-			bi := make([]bucketInfo, 0)
-			ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
-			defer cancel()
-			for _, t := range threads {
-				ctx = common.NewThreadIDContext(ctx, t.ID)
-				res, err := clients.Buckets.List(ctx)
-				if err != nil {
-					cmd.Fatal(err)
-				}
-				for _, root := range res.Roots {
-					name := "unnamed"
-					if root.Name != "" {
-						name = root.Name
-					}
-					bi = append(bi, bucketInfo{ID: t.ID, Name: name, Key: root.Key})
-				}
+			list, err := bucks.ListBuckets()
+			if err != nil {
+				cmd.Fatal(err)
 			}
-
 			prompt := promptui.Select{
 				Label: "Which exiting bucket do you want to init from?",
-				Items: bi,
+				Items: list,
 				Templates: &promptui.SelectTemplates{
 					Active:   fmt.Sprintf(`{{ "%s" | cyan }} {{ .Name | bold }} {{ .Key | faint | bold }}`, promptui.IconSelect),
 					Inactive: `{{ .Name | faint }} {{ .Key | faint | bold }}`,
@@ -104,7 +77,7 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 				cmd.Fatal(err)
 			}
 
-			selected := bi[index]
+			selected := list[index]
 			config.Viper.Set("thread", selected.ID.String())
 			config.Viper.Set("key", selected.Key)
 		}
@@ -188,13 +161,13 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 		if initRemote {
 			ctx, cancel := clients.Ctx.Thread(cmd.Timeout)
 			defer cancel()
-			opts := []client.InitOption{client.WithName(name), client.WithPrivate(private)}
+			opts := []bc.InitOption{bc.WithName(name), bc.WithPrivate(private)}
 			if bootCid != "" {
 				bCid, err := cid.Decode(bootCid)
 				if err != nil {
 					cmd.Fatal(err)
 				}
-				opts = append(opts, client.WithCid(bCid))
+				opts = append(opts, bc.WithCid(bCid))
 			}
 			rep, err := clients.Buckets.Init(ctx, opts...)
 			if err != nil {
@@ -202,7 +175,7 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 			}
 			config.Viper.Set("key", rep.Root.Key)
 
-			seed := filepath.Join(root, bucks.SeedName)
+			seed := filepath.Join(root, buckets.SeedName)
 			file, err := os.Create(seed)
 			if err != nil {
 				cmd.Fatal(err)
@@ -220,14 +193,14 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 			}
 			actx, acancel := context.WithTimeout(context.Background(), cmd.Timeout)
 			defer acancel()
-			if err = buck.SaveFile(actx, seed, bucks.SeedName); err != nil {
+			if err = buck.SaveFile(actx, seed, buckets.SeedName); err != nil {
 				cmd.Fatal(err)
 			}
 			sc, err := cid.Decode(rep.SeedCid)
 			if err != nil {
 				cmd.Fatal(err)
 			}
-			if err = buck.SetRemotePath(bucks.SeedName, sc); err != nil {
+			if err = buck.SetRemotePath(buckets.SeedName, sc); err != nil {
 				cmd.Fatal(err)
 			}
 			rp, err := util.NewResolvedPath(rep.Root.Path)
