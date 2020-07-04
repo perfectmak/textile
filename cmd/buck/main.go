@@ -19,16 +19,13 @@ func init() {
 	buck.Init(rootCmd)
 
 	rootCmd.PersistentFlags().String("api", defaultTarget, "API target")
-	if err := buck.Config().Viper.BindPFlag("api", rootCmd.PersistentFlags().Lookup("api")); err != nil {
-		cmd.Fatal(err)
-	}
+	err := buck.Config().Viper.BindPFlag("api", rootCmd.PersistentFlags().Lookup("api"))
+	cmd.ErrCheck(err)
 	buck.Config().Viper.SetDefault("api", defaultTarget)
 }
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
-		cmd.Fatal(err)
-	}
+	cmd.ErrCheck(rootCmd.Execute())
 }
 
 var rootCmd = &cobra.Command{
@@ -41,9 +38,7 @@ Manages files and folders in an object storage bucket.`,
 		buck.Config().Viper.SetConfigType("yaml")
 
 		target, err := c.Flags().GetString("api")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		clients = cmd.NewClients(target, false, &ctx{})
 		buck.PreRun(clients)
 	},

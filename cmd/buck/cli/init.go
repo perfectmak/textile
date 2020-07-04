@@ -1,25 +1,18 @@
 package cli
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	cid "github.com/ipfs/go-cid"
-	"github.com/ipfs/interface-go-ipfs-core/options"
 	"github.com/logrusorgru/aurora"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/go-threads/db"
-	bc "github.com/textileio/textile/api/buckets/client"
 	"github.com/textileio/textile/api/common"
-	"github.com/textileio/textile/buckets"
 	"github.com/textileio/textile/buckets/local"
 	"github.com/textileio/textile/cmd"
-	"github.com/textileio/textile/util"
 )
 
 var initCmd = &cobra.Command{
@@ -35,85 +28,45 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 `,
 	Args: cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
-		bootCid, err := c.Flags().GetString("cid")
-		if err != nil {
-			cmd.Fatal(err)
+		conf, err := bucks.GetLocalConfig()
+		if errors.Is(err, local.ErrThreadRequired) {
+			cmd.Fatal(fmt.Errorf("the --thread flag is required when using --key"))
 		}
+		cmd.ErrCheck(err)
+
+		var xcid cid.Cid
+		xcids, err := c.Flags().GetString("cid")
+		cmd.ErrCheck(err)
+		if xcids != "" {
+			xcid, err = cid.Decode(xcids)
+			cmd.ErrCheck(err)
+		}
+
 		existing, err := c.Flags().GetBool("existing")
-		if err != nil {
-			cmd.Fatal(err)
-		}
-		if bootCid != "" && existing {
+		cmd.ErrCheck(err)
+		if existing && xcid.Defined() {
 			cmd.Fatal(errors.New("only one of --cid and --existing flags can be used at the same time"))
 		}
 
-		var buckInfo *local.BucketInfo
-		if existing {
-			list, err := bucks.RemoteBuckets()
-			if err != nil {
-				cmd.Fatal(err)
-			}
-			prompt := promptui.Select{
-				Label: "Which exiting bucket do you want to init from?",
-				Items: list,
-				Templates: &promptui.SelectTemplates{
-					Active:   fmt.Sprintf(`{{ "%s" | cyan }} {{ .Name | bold }} {{ .Key | faint | bold }}`, promptui.IconSelect),
-					Inactive: `{{ .Name | faint }} {{ .Key | faint | bold }}`,
-					Selected: aurora.Sprintf(aurora.BrightBlack("> Selected bucket {{ .Name | white | bold }}")),
-				},
-			}
-			index, _, err := prompt.Run()
-			if err != nil {
-				cmd.Fatal(err)
-			}
-			buckInfo = &list[index]
-			//config.Viper.Set("thread", selected.ID.String())
-			//config.Viper.Set("key", selected.Key)
-		}
-
-		if buckInfo == nil {
-
-		}
-
-		var dbID thread.ID
-		xthread := config.Viper.GetString("thread")
-		if xthread != "" {
-			var err error
-			dbID, err = thread.Decode(xthread)
-			if err != nil {
-				cmd.Fatal(fmt.Errorf("invalid thread ID"))
-			}
-		}
-
-		xkey := config.Viper.GetString("key")
-		initRemote := true
-		if xkey != "" {
-			if !dbID.Defined() {
-				cmd.Fatal(fmt.Errorf("the --thread flag is required when using --key"))
-			}
-			initRemote = false
-		}
-
-		name, err := c.Flags().GetString("name")
-		if err != nil {
-			cmd.Fatal(err)
-		}
-		private, err := c.Flags().GetBool("private")
-		if err != nil {
-			cmd.Fatal(err)
-		}
-		if initRemote {
-			if !c.Flags().Changed("name") {
+		var name string
+		var private bool
+		if !existing {
+			if c.Flags().Changed("name") {
+				name, err = c.Flags().GetString("name")
+				cmd.ErrCheck(err)
+			} else {
 				namep := promptui.Prompt{
 					Label: "Enter a name for your new bucket (optional)",
 				}
-				var err error
 				name, err = namep.Run()
 				if err != nil {
 					cmd.End("")
 				}
 			}
-			if !c.Flags().Changed("private") {
+			if c.Flags().Changed("private") {
+				private, err = c.Flags().GetBool("private")
+				cmd.ErrCheck(err)
+			} else {
 				privp := promptui.Prompt{
 					Label:     "Encrypt bucket contents",
 					IsConfirm: true,
@@ -124,124 +77,73 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 			}
 		}
 
-		if !dbID.Defined() {
-			selected := clients.SelectThread("Buckets are written to a threadDB. Select or create a new one", aurora.Sprintf(
-				aurora.BrightBlack("> Selected threadDB {{ .Label | white | bold }}")), true)
+		if existing {
+			list, err := bucks.RemoteBuckets()
+			cmd.ErrCheck(err)
+			prompt := promptui.Select{
+				Label: "Which exiting bucket do you want to init from?",
+				Items: list,
+				Templates: &promptui.SelectTemplates{
+					Active:   fmt.Sprintf(`{{ "%s" | cyan }} {{ .Name | bold }} {{ .Key | faint | bold }}`, promptui.IconSelect),
+					Inactive: `{{ .Name | faint }} {{ .Key | faint | bold }}`,
+					Selected: aurora.Sprintf(aurora.BrightBlack("> Selected bucket {{ .Name | white | bold }}")),
+				},
+			}
+			index, _, err := prompt.Run()
+			cmd.ErrCheck(err)
+			selected := list[index]
+			name = selected.Name
+			conf.Thread = selected.ID
+			conf.Key = selected.Key
+		}
+
+		if !conf.Thread.Defined() {
+			selected := bucks.Clients().SelectThread(
+				"Buckets are written to a threadDB. Select or create a new one",
+				aurora.Sprintf(aurora.BrightBlack("> Selected threadDB {{ .Label | white | bold }}")),
+				true)
 			if selected.Label == "Create new" {
 				if selected.Name == "" {
 					prompt := promptui.Prompt{
 						Label: "Enter a name for your new threadDB (optional)",
 					}
-					var err error
 					selected.Name, err = prompt.Run()
 					if err != nil {
 						cmd.End("")
 					}
 				}
-				ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
+				ctx, cancel := bucks.Clients().Ctx.Auth(cmd.Timeout)
 				defer cancel()
 				ctx = common.NewThreadNameContext(ctx, selected.Name)
-				dbID = thread.NewIDV1(thread.Raw, 32)
-				if err := clients.Threads.NewDB(ctx, dbID, db.WithNewManagedName(selected.Name)); err != nil {
-					cmd.Fatal(err)
-				}
+				conf.Thread = thread.NewIDV1(thread.Raw, 32)
+				err = bucks.Clients().Threads.NewDB(ctx, conf.Thread, db.WithNewManagedName(selected.Name))
+				cmd.ErrCheck(err)
 			} else {
-				dbID = selected.ID
+				conf.Thread = selected.ID
 			}
-			config.Viper.Set("thread", dbID.String())
 		}
 
-		if initRemote {
-			ctx, cancel := clients.Ctx.Thread(cmd.Timeout)
-			defer cancel()
-			opts := []bc.InitOption{bc.WithName(name), bc.WithPrivate(private)}
-			if bootCid != "" {
-				bCid, err := cid.Decode(bootCid)
-				if err != nil {
-					cmd.Fatal(err)
-				}
-				opts = append(opts, bc.WithCid(bCid))
-			}
-			rep, err := clients.Buckets.Init(ctx, opts...)
-			if err != nil {
-				cmd.Fatal(err)
-			}
-			config.Viper.Set("key", rep.Root.Key)
+		events := make(chan local.PathEvent)
+		go handleProgressBars(events)
+		buck, links, err := bucks.NewBucket(
+			conf,
+			local.WithName(name),
+			local.WithPrivate(private),
+			local.WithCid(xcid),
+			local.WithExistingPathEvents(events))
+		cmd.ErrCheck(err)
 
-			seed := filepath.Join(root, buckets.SeedName)
-			file, err := os.Create(seed)
-			if err != nil {
-				cmd.Fatal(err)
-			}
-			_, err = file.Write(rep.Seed)
-			if err != nil {
-				file.Close()
-				cmd.Fatal(err)
-			}
-			file.Close()
+		printLinks(links)
 
-			buck, err := local.NewRepo(root, options.BalancedLayout)
-			if err != nil {
-				cmd.Fatal(err)
+		var msg string
+		if !existing {
+			msg = "Initialized a new empty bucket in %s"
+			if xcid.Defined() {
+				msg = "Initialized a new bootstrapped bucket in %s"
 			}
-			actx, acancel := context.WithTimeout(context.Background(), cmd.Timeout)
-			defer acancel()
-			if err = buck.SaveFile(actx, seed, buckets.SeedName); err != nil {
-				cmd.Fatal(err)
-			}
-			sc, err := cid.Decode(rep.SeedCid)
-			if err != nil {
-				cmd.Fatal(err)
-			}
-			if err = buck.SetRemotePath(buckets.SeedName, sc); err != nil {
-				cmd.Fatal(err)
-			}
-			rp, err := util.NewResolvedPath(rep.Root.Path)
-			if err != nil {
-				cmd.Fatal(err)
-			}
-			if err = buck.SetRemotePath("", rp.Cid()); err != nil {
-				cmd.Fatal(err)
-			}
-
-			if bootCid != "" {
-				getPath(rep.Root.Key, ".", ".", buck, nil, false)
-				if err := buck.Save(ctx); err != nil {
-					cmd.Fatal(err)
-				}
-			}
-
-			printLinks(rep.Links)
-		}
-
-		if err := config.Viper.WriteConfigAs(filename); err != nil {
-			cmd.Fatal(err)
-		}
-		if initRemote {
-			prefix := "Initialized an empty bucket in %s"
-			if bootCid != "" {
-				prefix = "Initialized a bootstrapped bucket in %s"
-			}
-			cmd.Success(prefix, aurora.White(root).Bold())
 		} else {
-			key := config.Viper.GetString("key")
-			count := getPath(key, "", root, nil, nil, false)
-
-			buck, err := local.NewRepo(root, options.BalancedLayout)
-			if err != nil {
-				cmd.Fatal(err)
-			}
-			rr := getRemoteRoot(key)
-			if err := buck.SetRemotePath("", rr); err != nil {
-				cmd.Fatal(err)
-			}
-			buck.SetCidVersion(int(rr.Version()))
-			ctx, cancel := context.WithTimeout(context.Background(), cmd.Timeout)
-			defer cancel()
-			if err = buck.Save(ctx); err != nil {
-				cmd.Fatal(err)
-			}
-			cmd.Success("Initialized from remote and pulled %d objects to %s", aurora.White(count).Bold(), aurora.White(root).Bold())
+			msg = "Initialized from an existing bucket in %s"
 		}
+		cmd.Success(msg, aurora.White(buck.Cwd()).Bold())
 	},
 }

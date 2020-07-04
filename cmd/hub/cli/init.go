@@ -33,9 +33,8 @@ var initCmd = &cobra.Command{
 		}
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
-		if err := clients.Hub.IsUsernameAvailable(ctx, username); err != nil {
-			cmd.Fatal(err)
-		}
+		err = clients.Hub.IsUsernameAvailable(ctx, username)
+		cmd.ErrCheck(err)
 
 		prompt2 := promptui.Prompt{
 			Label: "Enter your email",
@@ -69,17 +68,13 @@ var initCmd = &cobra.Command{
 		config.Viper.Set("session", res.Session)
 
 		home, err := homedir.Dir()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		dir := filepath.Join(home, config.Dir)
-		if err = os.MkdirAll(dir, os.ModePerm); err != nil {
-			cmd.Fatal(err)
-		}
+		err = os.MkdirAll(dir, os.ModePerm)
+		cmd.ErrCheck(err)
 		filename := filepath.Join(dir, config.Name+".yml")
-		if err = config.Viper.WriteConfigAs(filename); err != nil {
-			cmd.Fatal(err)
-		}
+		err = config.Viper.WriteConfigAs(filename)
+		cmd.ErrCheck(err)
 
 		fmt.Println(aurora.Sprintf("%s Email confirmed", aurora.Green("✔")))
 		cmd.Success("Welcome to the Hub. Initialize a new bucket with `%s`.", aurora.Cyan(Name+" buck init"))

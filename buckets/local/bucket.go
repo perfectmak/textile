@@ -48,21 +48,17 @@ type Bucket struct {
 	repo    *Repo
 }
 
+func (b *Bucket) Cwd() string {
+	return b.cwd
+}
+
 type Roots struct {
 	Local  cid.Cid
 	Remote cid.Cid
 }
 
 func (b *Bucket) Roots() (roots Roots, err error) {
-	cr, err := b.confRoot()
-	if err != nil {
-		return
-	}
-	buck, err := NewRepo(cr, options.BalancedLayout)
-	if err != nil {
-		return
-	}
-	lc, rc, err := buck.Root()
+	lc, rc, err := b.repo.Root()
 	if err != nil {
 		return
 	}

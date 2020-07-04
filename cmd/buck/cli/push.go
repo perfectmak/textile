@@ -19,23 +19,17 @@ var pushCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		force, err := c.Flags().GetBool("force")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		yes, err := c.Flags().GetBool("yes")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		events := make(chan local.PathEvent)
 		go handleProgressBars(events)
 		roots, err := buck.PushLocalPath(
 			local.WithConfirm(getConfirm("Push %d changes", yes)),
 			local.WithForce(force),
-			local.WithEvents(events))
+			local.WithPathEvents(events))
 		if errors.Is(err, local.ErrAborted) {
 			cmd.End("")
 		} else if errors.Is(err, local.ErrUpToDate) {

@@ -16,13 +16,9 @@ var whoamiCmd = &cobra.Command{
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
 		who, err := clients.Hub.GetSessionInfo(ctx)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		key, err := mbase.Encode(mbase.Base32, who.Key)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		cmd.Message("You are %s", aurora.White(who.Username).Bold())
 		cmd.Message("Your key is %s", aurora.White(key).Bold())
 	},

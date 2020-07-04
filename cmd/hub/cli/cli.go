@@ -55,9 +55,8 @@ func Init(rootCmd *cobra.Command) {
 		config.Flags["session"].DefValue.(string),
 		"User session token")
 
-	if err := cmd.BindFlags(config.Viper, rootCmd, config.Flags); err != nil {
-		cmd.Fatal(err)
-	}
+	err := cmd.BindFlags(config.Viper, rootCmd, config.Flags)
+	cmd.ErrCheck(err)
 
 	keysCmd.PersistentFlags().String("org", "", "Org username")
 	threadsCmd.PersistentFlags().String("org", "", "Org username")

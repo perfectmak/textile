@@ -40,9 +40,7 @@ However, for development purposes, you may opt-out of Signature Authentication d
 	Args: cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		org, err := c.Flags().GetString("org")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		if org != "" {
 			buck.Config().Viper.Set("org", org)
 		}
@@ -72,9 +70,7 @@ However, for development purposes, you may opt-out of Signature Authentication d
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
 		k, err := clients.Hub.CreateKey(ctx, pb.KeyType(index), secure)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		cmd.RenderTable([]string{"key", "secret", "type", "secure"}, [][]string{{k.Key, k.Secret, keyTypeDesc, strconv.FormatBool(secure)}})
 		cmd.Success("Created new API key and secret")
 	},
@@ -87,9 +83,7 @@ var keysInvalidateCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		org, err := c.Flags().GetString("org")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		if org != "" {
 			buck.Config().Viper.Set("org", org)
 		}
@@ -99,9 +93,8 @@ var keysInvalidateCmd = &cobra.Command{
 
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
-		if err := clients.Hub.InvalidateKey(ctx, selected.Key); err != nil {
-			cmd.Fatal(err)
-		}
+		err = clients.Hub.InvalidateKey(ctx, selected.Key)
+		cmd.ErrCheck(err)
 		cmd.Success("Invalidated key %s", aurora.White(selected.Key).Bold())
 	},
 }
@@ -116,9 +109,7 @@ var keysLsCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		org, err := c.Flags().GetString("org")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		if org != "" {
 			buck.Config().Viper.Set("org", org)
 		}
@@ -126,9 +117,7 @@ var keysLsCmd = &cobra.Command{
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
 		list, err := clients.Hub.ListKeys(ctx)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		if len(list.List) > 0 {
 			data := make([][]string, len(list.List))
 			for i, k := range list.List {
@@ -151,9 +140,7 @@ func selectKey(label, successMsg string) *keyItem {
 	ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 	defer cancel()
 	list, err := clients.Hub.ListKeys(ctx)
-	if err != nil {
-		cmd.Fatal(err)
-	}
+	cmd.ErrCheck(err)
 
 	items := make([]*keyItem, 0)
 	for _, k := range list.List {

@@ -53,9 +53,8 @@ func Init(baseCmd *cobra.Command) {
 	initCmd.PersistentFlags().String("key", "", "Bucket key")
 	initCmd.PersistentFlags().String("org", "", "Org username")
 	initCmd.PersistentFlags().String("thread", "", "Thread ID")
-	if err := cmd.BindFlags(config.Viper, initCmd, config.Flags); err != nil {
-		cmd.Fatal(err)
-	}
+	err := cmd.BindFlags(config.Viper, initCmd, config.Flags)
+	cmd.ErrCheck(err)
 	initCmd.Flags().StringP("name", "n", "", "Bucket name")
 	initCmd.Flags().BoolP("private", "p", false, "Obfuscates files and folders with encryption")
 	initCmd.Flags().String("cid", "", "Bootstrap the bucket with a UnixFS Cid from the IPFS network")
@@ -82,7 +81,6 @@ func Config() cmd.Config {
 
 func PreRun(c *cmd.Clients) {
 	bucks = local.NewBuckets(config, c)
-	cmd.ExpandConfigVars(config.Viper, config.Flags)
 }
 
 var statusCmd = &cobra.Command{
@@ -95,13 +93,9 @@ var statusCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		diff, err := buck.Diff()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		if len(diff) == 0 {
 			cmd.End("Everything up-to-date")
 		}
@@ -119,13 +113,9 @@ var rootCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		r, err := buck.Roots()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		cmd.Message("%s (local)", aurora.White(r.Local).Bold())
 		cmd.Message("%s (remote)", aurora.White(r.Remote).Bold())
 	},
@@ -141,13 +131,9 @@ var linksCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		links, err := buck.RemoteLinks()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		printLinks(links)
 	},
 }
@@ -171,17 +157,13 @@ var lsCmd = &cobra.Command{
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(c *cobra.Command, args []string) {
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		var pth string
 		if len(args) > 0 {
 			pth = args[0]
 		}
 		items, err := buck.ListRemotePath(pth)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		var data [][]string
 		if len(items) > 0 {
 			for _, item := range items {
@@ -214,12 +196,9 @@ var catCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(c *cobra.Command, args []string) {
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
-		if err := buck.CatRemotePath(args[0], os.Stdout); err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
+		err = buck.CatRemotePath(args[0], os.Stdout)
+		cmd.ErrCheck(err)
 	},
 }
 
@@ -230,12 +209,9 @@ var encryptCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	Run: func(c *cobra.Command, args []string) {
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
-		if err := buck.EncryptLocalPath(args[0], args[1], os.Stdout); err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
+		err = buck.EncryptLocalPath(args[0], args[1], os.Stdout)
+		cmd.ErrCheck(err)
 	},
 }
 
@@ -246,12 +222,9 @@ var decryptCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	Run: func(c *cobra.Command, args []string) {
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
-		if err := buck.DecryptLocalPath(args[0], args[1], os.Stdout); err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
+		err = buck.DecryptLocalPath(args[0], args[1], os.Stdout)
+		cmd.ErrCheck(err)
 	},
 }
 
@@ -262,20 +235,17 @@ var destroyCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		cmd.Warn("%s", aurora.Red("This action cannot be undone. The bucket and all associated data will be permanently deleted."))
 		prompt := promptui.Prompt{
 			Label:     "Are you absolutely sure",
 			IsConfirm: true,
 		}
-		if _, err := prompt.Run(); err != nil {
+		if _, err = prompt.Run(); err != nil {
 			cmd.End("")
 		}
-		if err := buck.Destroy(); err != nil {
-			cmd.Fatal(err)
-		}
+		err = buck.Destroy()
+		cmd.ErrCheck(err)
 		cmd.Success("Your bucket has been deleted")
 	},
 }

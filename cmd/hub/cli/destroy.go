@@ -19,9 +19,7 @@ var destroyCmd = &cobra.Command{
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
 		who, err := clients.Hub.GetSessionInfo(ctx)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 
 		cmd.Warn("%s", aurora.Red("Are you absolutely sure? This action cannot be undone. Your account and all associated data will be permanently deleted."))
 		prompt := promptui.Prompt{
@@ -39,9 +37,8 @@ var destroyCmd = &cobra.Command{
 
 		ctx2, cancel2 := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel2()
-		if err := clients.Hub.DestroyAccount(ctx2); err != nil {
-			cmd.Fatal(err)
-		}
+		err = clients.Hub.DestroyAccount(ctx2)
+		cmd.ErrCheck(err)
 		_ = os.RemoveAll(config.Viper.ConfigFileUsed())
 		cmd.Success("Your account has been deleted")
 	},

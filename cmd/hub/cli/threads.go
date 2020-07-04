@@ -27,9 +27,7 @@ var threadsLsCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		org, err := c.Flags().GetString("org")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		if org != "" {
 			buck.Config().Viper.Set("org", org)
 		}

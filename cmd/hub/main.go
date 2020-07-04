@@ -22,9 +22,7 @@ func init() {
 }
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
-		cmd.Fatal(err)
-	}
+	cmd.ErrCheck(rootCmd.Execute())
 }
 
 var rootCmd = &cobra.Command{

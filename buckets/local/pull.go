@@ -146,11 +146,9 @@ looop:
 					errs <- err
 					return
 				}
-				if b.repo != nil {
-					if err := b.repo.SetRemotePath(o.path, o.cid); err != nil {
-						errs <- err
-						return
-					}
+				if err := b.repo.SetRemotePath(o.path, o.cid); err != nil {
+					errs <- err
+					return
 				}
 			}(o)
 		}
@@ -205,7 +203,7 @@ func (b *Bucket) listPath(key, pth, dest string, force bool) (all, missing []obj
 		}
 		o := object{path: pth, name: name, size: rep.Item.Size, cid: c}
 		all = append(all, o)
-		if !force && b.repo != nil {
+		if !force {
 			c, err := cid.Decode(rep.Item.Cid)
 			if err != nil {
 				return nil, nil, err

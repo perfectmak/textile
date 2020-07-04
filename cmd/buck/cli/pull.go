@@ -16,28 +16,20 @@ var pullCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(0),
 	Run: func(c *cobra.Command, args []string) {
 		force, err := c.Flags().GetBool("force")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		hard, err := c.Flags().GetBool("hard")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		yes, err := c.Flags().GetBool("yes")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		events := make(chan local.PathEvent)
 		go handleProgressBars(events)
 		roots, err := buck.PullRemotePath(
 			local.WithConfirm(getConfirm("Discard %d local changes", yes)),
 			local.WithForce(force),
 			local.WithHard(hard),
-			local.WithEvents(events))
+			local.WithPathEvents(events))
 		if errors.Is(err, local.ErrAborted) {
 			cmd.End("")
 		} else if errors.Is(err, local.ErrUpToDate) {

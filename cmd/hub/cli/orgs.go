@@ -42,9 +42,7 @@ var orgsCreateCmd = &cobra.Command{
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
 		_, err = clients.Hub.IsOrgNameAvailable(ctx, name)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		//url := fmt.Sprintf("%s/%s", res.Host, res.Slug)
 
 		cmd.Message("The name of your Hub account will be %s", aurora.White(name).Bold())
@@ -62,9 +60,7 @@ var orgsCreateCmd = &cobra.Command{
 		ctx, cancel = clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
 		org, err := clients.Hub.CreateOrg(ctx, name)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		//url = fmt.Sprintf("%s/%s", org.Host, org.Slug)
 		// @todo: Uncomment when dashboard's are live
 		//cmd.Success("Created new org %s with URL %s", aurora.White(org.Name).Bold(), aurora.Underline(url))
@@ -84,16 +80,12 @@ var orgsLsCmd = &cobra.Command{
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
 		orgs, err := clients.Hub.ListOrgs(ctx)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		if len(orgs.List) > 0 {
 			data := make([][]string, len(orgs.List))
 			for i, o := range orgs.List {
 				key, err := mbase.Encode(mbase.Base32, o.Key)
-				if err != nil {
-					cmd.Fatal(err)
-				}
+				cmd.ErrCheck(err)
 				url := fmt.Sprintf("%s/%s", o.Host, o.Slug)
 				data[i] = []string{o.Name, url, key, strconv.Itoa(len(o.Members))}
 			}
@@ -117,17 +109,13 @@ var orgsMembersCmd = &cobra.Command{
 		defer cancel()
 
 		org, err := clients.Hub.GetOrg(ctx)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 
 		if len(org.Members) > 0 {
 			data := make([][]string, len(org.Members))
 			for i, m := range org.Members {
 				key, err := mbase.Encode(mbase.Base32, m.Key)
-				if err != nil {
-					cmd.Fatal(err)
-				}
+				cmd.ErrCheck(err)
 				data[i] = []string{m.Username, key}
 			}
 			cmd.RenderTable([]string{"username", "key"}, data)
@@ -160,9 +148,8 @@ var orgsInviteCmd = &cobra.Command{
 
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
-		if _, err := clients.Hub.InviteToOrg(ctx, email); err != nil {
-			cmd.Fatal(err)
-		}
+		_, err = clients.Hub.InviteToOrg(ctx, email)
+		cmd.ErrCheck(err)
 		cmd.Success("We sent %s an invitation to the %s org", aurora.White(email).Bold(),
 			aurora.White(selected.Name).Bold())
 	},
@@ -180,9 +167,8 @@ var orgsLeaveCmd = &cobra.Command{
 
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
-		if err := clients.Hub.LeaveOrg(ctx); err != nil {
-			cmd.Fatal(err)
-		}
+		err := clients.Hub.LeaveOrg(ctx)
+		cmd.ErrCheck(err)
 		cmd.Success("Left org %s", aurora.White(selected.Name).Bold())
 	},
 }
@@ -197,9 +183,7 @@ func selectOrg(label, successMsg string) *orgItem {
 	ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 	defer cancel()
 	orgs, err := clients.Hub.ListOrgs(ctx)
-	if err != nil {
-		cmd.Fatal(err)
-	}
+	cmd.ErrCheck(err)
 
 	items := make([]*orgItem, len(orgs.List))
 	for i, o := range orgs.List {
@@ -252,9 +236,8 @@ var orgsDestroyCmd = &cobra.Command{
 
 		ctx, cancel := clients.Ctx.Auth(cmd.Timeout)
 		defer cancel()
-		if err := clients.Hub.RemoveOrg(ctx); err != nil {
-			cmd.Fatal(err)
-		}
+		err := clients.Hub.RemoveOrg(ctx)
+		cmd.ErrCheck(err)
 		cmd.Success("Org %s has been deleted", aurora.White(selected.Name).Bold())
 	},
 }

@@ -88,12 +88,9 @@ func getTermDim() (w, h int) {
 	c := exec.Command("stty", "size")
 	c.Stdin = os.Stdin
 	termDim, err := c.Output()
-	if err != nil {
-		cmd.Fatal(err)
-	}
-	if _, err = fmt.Sscan(string(termDim), &h, &w); err != nil {
-		cmd.Fatal(err)
-	}
+	cmd.ErrCheck(err)
+	_, err = fmt.Sscan(string(termDim), &h, &w)
+	cmd.ErrCheck(err)
 	return w, h
 }
 

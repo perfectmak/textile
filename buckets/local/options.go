@@ -1,12 +1,17 @@
 package local
 
-import cid "github.com/ipfs/go-cid"
+import (
+	cid "github.com/ipfs/go-cid"
+	"github.com/textileio/go-threads/core/thread"
+)
 
 type newOptions struct {
-	name       string
-	private    bool
-	fromBucket *BucketInfo
-	fromCid    cid.Cid
+	name    string
+	private bool
+	thread  thread.ID
+	key     string
+	fromCid cid.Cid
+	events  chan PathEvent
 }
 
 type NewOption func(*newOptions)
@@ -33,12 +38,9 @@ func WithCid(c cid.Cid) NewOption {
 	}
 }
 
-// WithBucket indicates that an inited bucket should be a mirror of an
-// existing bucket. Use this option to pull down buckets created on
-// a different machine or by other org members.
-func WithBucket(b BucketInfo) NewOption {
+func WithExistingPathEvents(ch chan PathEvent) NewOption {
 	return func(args *newOptions) {
-		args.fromBucket = &b
+		args.events = ch
 	}
 }
 
@@ -71,7 +73,7 @@ func WithHard(b bool) PathOption {
 	}
 }
 
-func WithEvents(ch chan PathEvent) PathOption {
+func WithPathEvents(ch chan PathEvent) PathOption {
 	return func(args *pathOptions) {
 		args.events = ch
 	}
