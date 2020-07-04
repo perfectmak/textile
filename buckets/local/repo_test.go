@@ -18,110 +18,110 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewBucket(t *testing.T) {
-	makeBucket(t, "testdata/a", options.BalancedLayout)
+func TestNewRepo(t *testing.T) {
+	makeRepo(t, "testdata/a", options.BalancedLayout)
 }
 
-func TestBucket_SetCidVersion(t *testing.T) {
-	buck0 := makeBucket(t, "testdata/a", options.BalancedLayout)
-	buck0.SetCidVersion(0)
-	err := buck0.Save(context.Background())
+func TestRepo_SetCidVersion(t *testing.T) {
+	repo0 := makeRepo(t, "testdata/a", options.BalancedLayout)
+	repo0.SetCidVersion(0)
+	err := repo0.Save(context.Background())
 	require.Nil(t, err)
-	lc0, _, err := buck0.Root()
+	lc0, _, err := repo0.Root()
 	require.Nil(t, err)
 	assert.True(t, lc0.Defined())
-	assert.Equal(t, 0, buck0.cidver)
+	assert.Equal(t, 0, repo0.cidver)
 	assert.Equal(t, 0, int(lc0.Version()))
-	buck0.Close()
+	repo0.Close()
 
-	buck1 := makeBucket(t, "testdata/a", options.BalancedLayout)
-	defer buck1.Close()
-	buck1.SetCidVersion(1)
-	err = buck1.Save(context.Background())
+	repo1 := makeRepo(t, "testdata/a", options.BalancedLayout)
+	defer repo1.Close()
+	repo1.SetCidVersion(1)
+	err = repo1.Save(context.Background())
 	require.Nil(t, err)
-	lc1, _, err := buck1.Root()
+	lc1, _, err := repo1.Root()
 	require.Nil(t, err)
 	assert.True(t, lc1.Defined())
-	assert.Equal(t, 1, buck1.cidver)
+	assert.Equal(t, 1, repo1.cidver)
 	assert.Equal(t, 1, int(lc1.Version()))
 }
 
-func TestBucket_Save(t *testing.T) {
-	buck := makeBucket(t, "testdata/a", options.BalancedLayout)
+func TestRepo_Save(t *testing.T) {
+	repo := makeRepo(t, "testdata/a", options.BalancedLayout)
 
-	err := buck.Save(context.Background())
+	err := repo.Save(context.Background())
 	require.Nil(t, err)
-	lc, _, err := buck.Root()
+	lc, _, err := repo.Root()
 	require.Nil(t, err)
 	assert.True(t, lc.Defined())
-	buck.Close()
+	repo.Close()
 
-	buck2 := makeBucket(t, "testdata/a", options.BalancedLayout)
-	defer buck2.Close()
-	n, err := buck2.Get(context.Background(), lc)
+	repo2 := makeRepo(t, "testdata/a", options.BalancedLayout)
+	defer repo2.Close()
+	n, err := repo2.Get(context.Background(), lc)
 	require.Nil(t, err)
-	checkLinks(t, buck2, n)
+	checkLinks(t, repo2, n)
 
-	diff, err := buck2.Diff(context.Background(), "testdata/a")
+	diff, err := repo2.Diff(context.Background(), "testdata/a")
 	require.Nil(t, err)
 	require.Empty(t, diff)
 }
 
-func TestBucket_SaveFile(t *testing.T) {
-	buck := makeBucket(t, "testdata/c", options.BalancedLayout)
+func TestRepo_SaveFile(t *testing.T) {
+	repo := makeRepo(t, "testdata/c", options.BalancedLayout)
 
-	err := buck.SaveFile(context.Background(), "testdata/c/one.jpg", "one.jpg")
+	err := repo.SaveFile(context.Background(), "testdata/c/one.jpg", "one.jpg")
 	require.Nil(t, err)
-	lc, _, err := buck.Root()
+	lc, _, err := repo.Root()
 	require.Nil(t, err)
 	assert.True(t, lc.Defined())
-	buck.Close()
+	repo.Close()
 
-	buck2 := makeBucket(t, "testdata/c", options.BalancedLayout)
-	defer buck2.Close()
-	n, err := buck2.Get(context.Background(), lc)
+	repo2 := makeRepo(t, "testdata/c", options.BalancedLayout)
+	defer repo2.Close()
+	n, err := repo2.Get(context.Background(), lc)
 	require.Nil(t, err)
-	checkLinks(t, buck2, n)
+	checkLinks(t, repo2, n)
 
-	diff, err := buck2.Diff(context.Background(), "testdata/c")
+	diff, err := repo2.Diff(context.Background(), "testdata/c")
 	require.Nil(t, err)
 	require.Equal(t, 1, len(diff))
 }
 
-func checkLinks(t *testing.T, buck *Bucket, n ipld.Node) {
+func checkLinks(t *testing.T, repo *Repo, n ipld.Node) {
 	for _, l := range n.Links() {
-		ln, err := buck.Get(context.Background(), l.Cid)
+		ln, err := repo.Get(context.Background(), l.Cid)
 		if l.Name == "" { // Data node should not have been saved
 			require.NotNil(t, err)
 		} else {
 			require.Nil(t, err)
-			checkLinks(t, buck, ln)
+			checkLinks(t, repo, ln)
 		}
 	}
 }
 
-func TestBucket_HashFile(t *testing.T) {
-	buck := makeBucket(t, "testdata/c", options.BalancedLayout)
-	defer buck.Close()
+func TestRepo_HashFile(t *testing.T) {
+	repo := makeRepo(t, "testdata/c", options.BalancedLayout)
+	defer repo.Close()
 
-	c, err := buck.HashFile("testdata/c/one.jpg")
+	c, err := repo.HashFile("testdata/c/one.jpg")
 	require.Nil(t, err)
 	assert.NotEmpty(t, c)
 }
 
-func TestBucket_Diff(t *testing.T) {
+func TestRepo_Diff(t *testing.T) {
 	t.Run("raw files", func(t *testing.T) {
-		buck := makeBucket(t, "testdata/a", options.BalancedLayout)
-		defer buck.Close()
+		repo := makeRepo(t, "testdata/a", options.BalancedLayout)
+		defer repo.Close()
 
-		err := buck.Save(context.Background())
+		err := repo.Save(context.Background())
 		require.Nil(t, err)
 
-		diffa, err := buck.Diff(context.Background(), "testdata/a")
+		diffa, err := repo.Diff(context.Background(), "testdata/a")
 		require.Nil(t, err)
 		assert.Empty(t, diffa)
 
-		diffb, err := buck.Diff(context.Background(), "testdata/b")
+		diffb, err := repo.Diff(context.Background(), "testdata/b")
 		require.Nil(t, err)
 		assert.NotEmpty(t, diffb)
 		assert.Equal(t, 6, len(diffb))
@@ -152,8 +152,8 @@ func TestBucket_Diff(t *testing.T) {
 		require.Nil(t, err)
 		dirs = append(dirs, dira)
 
-		buck := makeBucket(t, dira, options.BalancedLayout)
-		defer buck.Close()
+		repo := makeRepo(t, dira, options.BalancedLayout)
+		defer repo.Close()
 
 		// Add a file large enough to have multiple raw node chunks
 		fa, err := os.Create(filepath.Join(dira, "file"))
@@ -162,10 +162,10 @@ func TestBucket_Diff(t *testing.T) {
 		_, err = io.CopyN(fa, rand.Reader, 1000*1024)
 		require.Nil(t, err)
 
-		err = buck.Save(context.Background())
+		err = repo.Save(context.Background())
 		require.Nil(t, err)
 
-		diffa, err := buck.Diff(context.Background(), dira)
+		diffa, err := repo.Diff(context.Background(), dira)
 		require.Nil(t, err)
 		assert.Empty(t, diffa)
 
@@ -180,7 +180,7 @@ func TestBucket_Diff(t *testing.T) {
 		_, err = io.CopyN(fb, rand.Reader, 1000*1024)
 		require.Nil(t, err)
 
-		diffb, err := buck.Diff(context.Background(), dirb)
+		diffb, err := repo.Diff(context.Background(), dirb)
 		require.Nil(t, err)
 		assert.NotEmpty(t, diffb)
 		assert.Equal(t, 1, len(diffb))
@@ -205,7 +205,7 @@ func TestBucket_Diff(t *testing.T) {
 		_, err = io.CopyN(fb, rand.Reader, 1000*1024)
 		require.Nil(t, err)
 
-		diffc, err := buck.Diff(context.Background(), dirc)
+		diffc, err := repo.Diff(context.Background(), dirc)
 		require.Nil(t, err)
 		assert.NotEmpty(t, diffc)
 		assert.Equal(t, 1, len(diffc))
@@ -216,81 +216,81 @@ func TestBucket_Diff(t *testing.T) {
 	})
 }
 
-func TestBucket_Get(t *testing.T) {
-	buck := makeBucket(t, "testdata/a", options.BalancedLayout)
-	defer buck.Close()
+func TestRepo_Get(t *testing.T) {
+	repo := makeRepo(t, "testdata/a", options.BalancedLayout)
+	defer repo.Close()
 
-	err := buck.Save(context.Background())
+	err := repo.Save(context.Background())
 	require.Nil(t, err)
 
-	lc, _, err := buck.Root()
+	lc, _, err := repo.Root()
 	require.Nil(t, err)
 	assert.True(t, lc.Defined())
-	n, err := buck.Get(context.Background(), lc)
+	n, err := repo.Get(context.Background(), lc)
 	require.Nil(t, err)
 	assert.Equal(t, lc, n.Cid())
 }
 
-func TestBucket_SetRemotePath(t *testing.T) {
-	buck := makeBucket(t, "testdata/a", options.BalancedLayout)
-	defer buck.Close()
+func TestRepo_SetRemotePath(t *testing.T) {
+	repo := makeRepo(t, "testdata/a", options.BalancedLayout)
+	defer repo.Close()
 
-	err := buck.Save(context.Background())
+	err := repo.Save(context.Background())
 	require.Nil(t, err)
-	lc, _, err := buck.Root()
+	lc, _, err := repo.Root()
 	require.Nil(t, err)
 	assert.True(t, lc.Defined())
 
-	err = buck.SetRemotePath("", lc)
+	err = repo.SetRemotePath("", lc)
 	require.Nil(t, err)
 }
 
-func TestBucket_MatchPath(t *testing.T) {
-	buck := makeBucket(t, "testdata/a", options.BalancedLayout)
-	defer buck.Close()
+func TestRepo_MatchPath(t *testing.T) {
+	repo := makeRepo(t, "testdata/a", options.BalancedLayout)
+	defer repo.Close()
 
-	err := buck.Save(context.Background())
+	err := repo.Save(context.Background())
 	require.Nil(t, err)
-	lc, _, err := buck.Root()
+	lc, _, err := repo.Root()
 	require.Nil(t, err)
 	assert.True(t, lc.Defined())
 
 	rc := makeCid(t, "remote")
-	err = buck.SetRemotePath("", rc)
+	err = repo.SetRemotePath("", rc)
 	require.Nil(t, err)
 
-	match, err := buck.MatchPath("", lc, rc)
+	match, err := repo.MatchPath("", lc, rc)
 	require.Nil(t, err)
 	assert.True(t, match)
 }
 
-func TestBucket_RemovePath(t *testing.T) {
-	buck := makeBucket(t, "testdata/a", options.BalancedLayout)
-	defer buck.Close()
+func TestRepo_RemovePath(t *testing.T) {
+	repo := makeRepo(t, "testdata/a", options.BalancedLayout)
+	defer repo.Close()
 
 	k, err := getPathKey("path/to/file")
 	require.Nil(t, err)
-	err = buck.putPathMap(k, pathMap{
+	err = repo.putPathMap(k, pathMap{
 		Local:  makeCid(t, "local"),
 		Remote: makeCid(t, "remote"),
 	})
 	require.Nil(t, err)
-	err = buck.RemovePath(context.Background(), "path/to/file")
+	err = repo.RemovePath(context.Background(), "path/to/file")
 	require.Nil(t, err)
 
-	_, err = buck.getPathMap(k)
+	_, err = repo.getPathMap(k)
 	require.NotNil(t, err)
 }
 
-func makeBucket(t *testing.T, root string, layout options.Layout) *Bucket {
-	buck, err := NewBucket(root, layout)
+func makeRepo(t *testing.T, root string, layout options.Layout) *Repo {
+	repo, err := NewRepo(root, layout)
 	require.Nil(t, err)
 
 	t.Cleanup(func() {
-		err := os.RemoveAll(filepath.Join(buck.path, filepath.Dir(repoPath)))
+		err := os.RemoveAll(filepath.Join(repo.path, filepath.Dir(repoPath)))
 		require.Nil(t, err)
 	})
-	return buck
+	return repo
 }
 
 func makeCid(t *testing.T, s string) cid.Cid {

@@ -10,42 +10,90 @@ import (
 	"github.com/textileio/textile/cmd"
 )
 
-var (
-	ErrNotABucket = fmt.Errorf("not a bucket (or any of the parent directories): .textile")
-)
+var ErrNotABucket = fmt.Errorf("not a bucket (or any of the parent directories): .textile")
 
 type Buckets struct {
-	cwd     string
 	conf    cmd.Config
 	clients *cmd.Clients
 }
 
-func NewBuckets(config cmd.Config, clients *cmd.Clients) (*Buckets, error) {
+func NewBuckets(config cmd.Config, clients *cmd.Clients) *Buckets {
+	return &Buckets{conf: config, clients: clients}
+}
+
+func (b *Buckets) NewLocalBucket(opts ...NewOption) (*Bucket, error) {
+	args := &newOptions{}
+	for _, opt := range opts {
+		opt(args)
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, err
 	}
-	return &Buckets{
-		cwd:     cwd,
-		conf:    config,
-		clients: clients,
-	}, nil
-}
-
-func (b *Buckets) Create() error {
-	dir := filepath.Join(b.cwd, b.conf.Dir)
-	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-		return err
+	dir := filepath.Join(cwd, b.conf.Dir)
+	if err = os.MkdirAll(dir, os.ModePerm); err != nil {
+		return nil, err
 	}
-	cn, err := b.confName()
-	if err != nil {
-		return err
-	}
+	cn := filepath.Join(dir, b.conf.Name+".yml")
 	if _, err := os.Stat(cn); err == nil {
-		return fmt.Errorf("bucket %s is already initialized", b.cwd)
+		return nil, fmt.Errorf("bucket %s is already initialized", cwd)
 	}
 
+	buck := &Bucket{
+		cwd:     cwd,
+		conf:    b.conf,
+		clients: b.clients,
+	}
+	if err = buck.loadLocalRepo(true); err != nil {
+		return nil, err
+	}
+	return buck, nil
 }
+
+func (b *Buckets) GetLocalBucket() (*Bucket, error) {
+	if err := b.requireConfig(); err != nil {
+		return nil, err
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	buck := &Bucket{
+		cwd:     cwd,
+		conf:    b.conf,
+		clients: b.clients,
+	}
+	if err = buck.loadLocalRepo(true); err != nil {
+		return nil, err
+	}
+	return buck, nil
+}
+
+func (b *Buckets) requireConfig() error {
+	if b.conf.Viper.ConfigFileUsed() == "" {
+		return ErrNotABucket
+	}
+	return nil
+}
+
+// --Buckets--
+//x RemoteBuckets
+// NewLocalBucket
+//x GetLocalBucket
+//
+// --Bucket--
+//x LocalRepo
+//x Roots
+//x RemoteLinks
+//x CatRemotePath
+//x EncryptLocalPath
+//x DecryptLocalPath
+//x ListRemotePath
+//x PushLocalPath
+// AddRemoteCid
+//x PullRemotePath
+// ArchiveRemote
 
 type BucketInfo struct {
 	ID   thread.ID
@@ -53,11 +101,7 @@ type BucketInfo struct {
 	Key  string
 }
 
-func (b *Buckets) Init() error {
-
-}
-
-func (b *Buckets) ListBuckets() (list []BucketInfo, err error) {
+func (b *Buckets) RemoteBuckets() (list []BucketInfo, err error) {
 	threads := b.clients.ListThreads(true)
 	ctx, cancel := b.clients.Ctx.Auth(cmd.Timeout)
 	defer cancel()
@@ -80,41 +124,4 @@ func (b *Buckets) ListBuckets() (list []BucketInfo, err error) {
 		}
 	}
 	return list, nil
-}
-
-func (b *Buckets) confName() (name string, err error) {
-	dir := filepath.Join(b.cwd, b.conf.Dir)
-	if err = os.MkdirAll(dir, os.ModePerm); err != nil {
-		return
-	}
-	return filepath.Join(dir, b.conf.Name+".yml"), nil
-}
-
-func (b *Buckets) ensureScope() error {
-	cmd.ExpandConfigVars(b.conf.Viper, b.conf.Flags)
-	if b.conf.Viper.ConfigFileUsed() == "" {
-		return ErrNotABucket
-	}
-	return nil
-}
-
-type Links struct {
-	URL  string
-	WWW  string
-	IPNS string
-}
-
-func (b *Buckets) Links() (links Links, err error) {
-	if err = b.ensureScope(); err != nil {
-		return
-	}
-
-	ctx, cancel := b.clients.Ctx.Thread(cmd.Timeout)
-	defer cancel()
-	key := b.conf.Viper.GetString("key")
-	res, err := b.clients.Buckets.Links(ctx, key)
-	if err != nil {
-		return
-	}
-	return Links{URL: res.URL, WWW: res.WWW, IPNS: res.IPNS}, nil
 }

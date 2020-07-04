@@ -22,13 +22,7 @@ import (
 	"github.com/textileio/textile/util"
 )
 
-type bucketInfo struct {
-	ID   thread.ID
-	Name string
-	Key  string
-}
-
-var bucketInitCmd = &cobra.Command{
+var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize a new or existing bucket",
 	Long: `Initializes a new or existing bucket.
@@ -40,12 +34,7 @@ Use the '--existing' flag to initialize from an existing remote bucket.
 Use the '--cid' flag to initialize from an existing UnixFS DAG.
 `,
 	Args: cobra.ExactArgs(0),
-	PreRun: func(c *cobra.Command, args []string) {
-		cmd.ExpandConfigVars(config.Viper, config.Flags)
-	},
 	Run: func(c *cobra.Command, args []string) {
-		bucks := local.NewBuckets(config, clients)
-
 		bootCid, err := c.Flags().GetString("cid")
 		if err != nil {
 			cmd.Fatal(err)
@@ -58,8 +47,9 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 			cmd.Fatal(errors.New("only one of --cid and --existing flags can be used at the same time"))
 		}
 
+		var buckInfo *local.BucketInfo
 		if existing {
-			list, err := bucks.ListBuckets()
+			list, err := bucks.RemoteBuckets()
 			if err != nil {
 				cmd.Fatal(err)
 			}
@@ -76,10 +66,13 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 			if err != nil {
 				cmd.Fatal(err)
 			}
+			buckInfo = &list[index]
+			//config.Viper.Set("thread", selected.ID.String())
+			//config.Viper.Set("key", selected.Key)
+		}
 
-			selected := list[index]
-			config.Viper.Set("thread", selected.ID.String())
-			config.Viper.Set("key", selected.Key)
+		if buckInfo == nil {
+
 		}
 
 		var dbID thread.ID
@@ -187,7 +180,7 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 			}
 			file.Close()
 
-			buck, err := local.NewBucket(root, options.BalancedLayout)
+			buck, err := local.NewRepo(root, options.BalancedLayout)
 			if err != nil {
 				cmd.Fatal(err)
 			}
@@ -234,7 +227,7 @@ Use the '--cid' flag to initialize from an existing UnixFS DAG.
 			key := config.Viper.GetString("key")
 			count := getPath(key, "", root, nil, nil, false)
 
-			buck, err := local.NewBucket(root, options.BalancedLayout)
+			buck, err := local.NewRepo(root, options.BalancedLayout)
 			if err != nil {
 				cmd.Fatal(err)
 			}

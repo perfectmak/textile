@@ -67,6 +67,6 @@ func Config() cmd.Config {
 	return config
 }
 
-func SetClients(c *cmd.Clients) {
+func PreRun(c *cmd.Clients) {
 	clients = c
 }

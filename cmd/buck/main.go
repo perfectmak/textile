@@ -45,7 +45,7 @@ Manages files and folders in an object storage bucket.`,
 			cmd.Fatal(err)
 		}
 		clients = cmd.NewClients(target, false, &ctx{})
-		buck.SetClients(clients)
+		buck.PreRun(clients)
 	},
 	PersistentPostRun: func(c *cobra.Command, args []string) {
 		clients.Close()

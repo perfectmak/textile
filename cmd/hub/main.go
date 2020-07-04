@@ -43,8 +43,8 @@ var rootCmd = &cobra.Command{
 		}
 
 		clients = cmd.NewClients(hub.Config().Viper.GetString("api"), true, &ctx{})
-		hub.SetClients(clients)
-		buck.SetClients(clients)
+		hub.PreRun(clients)
+		buck.PreRun(clients)
 	},
 	PersistentPostRun: func(c *cobra.Command, args []string) {
 		clients.Close()
