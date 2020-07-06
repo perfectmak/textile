@@ -7,12 +7,12 @@ import (
 )
 
 type BucketItem struct {
-	Cid   cid.Cid      `json:"cid,omitempty"`
-	Name  string       `json:"name,omitempty"`
-	Path  string       `json:"path,omitempty"`
-	Size  int64        `json:"size,omitempty"`
-	IsDir bool         `json:"isDir,omitempty"`
-	Items []BucketItem `json:"items,omitempty"`
+	Cid   cid.Cid      `json:"cid"`
+	Name  string       `json:"name"`
+	Path  string       `json:"path"`
+	Size  int64        `json:"size"`
+	IsDir bool         `json:"is_dir"`
+	Items []BucketItem `json:"items"`
 }
 
 func (b *Bucket) ListRemotePath(pth string) (items []BucketItem, err error) {
@@ -46,25 +46,25 @@ func (b *Bucket) ListRemotePath(pth string) (items []BucketItem, err error) {
 	return items, nil
 }
 
-func pbItemToItem(i *pb.ListPathItem) (b BucketItem, err error) {
-	c, err := cid.Decode(i.Cid)
+func pbItemToItem(pi *pb.ListPathItem) (item BucketItem, err error) {
+	c, err := cid.Decode(pi.Cid)
 	if err != nil {
 		return
 	}
-	items := make([]BucketItem, len(i.Items))
-	for j, k := range i.Items {
+	items := make([]BucketItem, len(pi.Items))
+	for j, k := range pi.Items {
 		ii, err := pbItemToItem(k)
 		if err != nil {
-			return b, err
+			return item, err
 		}
 		items[j] = ii
 	}
 	return BucketItem{
 		Cid:   c,
-		Name:  i.Name,
-		Path:  i.Path,
-		Size:  i.Size,
-		IsDir: i.IsDir,
+		Name:  pi.Name,
+		Path:  pi.Path,
+		Size:  pi.Size,
+		IsDir: pi.IsDir,
 		Items: items,
 	}, nil
 }

@@ -53,8 +53,8 @@ func (b *Bucket) Cwd() string {
 }
 
 type Roots struct {
-	Local  cid.Cid
-	Remote cid.Cid
+	Local  cid.Cid `json:"local"`
+	Remote cid.Cid `json:"remote"`
 }
 
 func (b *Bucket) Roots() (roots Roots, err error) {
@@ -72,9 +72,9 @@ func (b *Bucket) Roots() (roots Roots, err error) {
 }
 
 type Links struct {
-	URL  string
-	WWW  string
-	IPNS string
+	URL  string `json:"url"`
+	WWW  string `json:"www"`
+	IPNS string `json:"ipns"`
 }
 
 func (b *Bucket) RemoteLinks() (links Links, err error) {

@@ -24,12 +24,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/textileio/textile/buckets"
-
 	"github.com/ipfs/go-cid"
 	"github.com/textileio/go-threads/core/thread"
 	"github.com/textileio/textile/api/buckets/client"
 	"github.com/textileio/textile/api/common"
+	"github.com/textileio/textile/buckets"
 	"github.com/textileio/textile/cmd"
 	"github.com/textileio/textile/util"
 )
@@ -229,9 +228,9 @@ func (b *Buckets) requireConfig() error {
 }
 
 type BucketInfo struct {
-	ID   thread.ID
-	Name string
-	Key  string
+	ID   thread.ID `json:"id"`
+	Name string    `json:"name"`
+	Key  string    `json:"key"`
 }
 
 func (b *Buckets) RemoteBuckets() (list []BucketInfo, err error) {
