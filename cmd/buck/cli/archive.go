@@ -21,12 +21,9 @@ var archiveCmd = &cobra.Command{
 			cmd.End("")
 		}
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
-		if err = buck.ArchiveRemote(); err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
+		err = buck.ArchiveRemote()
+		cmd.ErrCheck(err)
 		cmd.Success("Archive queued successfully")
 	},
 }
@@ -37,17 +34,11 @@ var archiveStatusCmd = &cobra.Command{
 	Long:  `Shows the status of the most recent bucket archive.`,
 	Run: func(c *cobra.Command, args []string) {
 		watch, err := c.Flags().GetBool("watch")
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		msgs, err := buck.ArchiveStatus(watch)
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		for m := range msgs {
 			switch m.Type {
 			case local.ArchiveMessage:
@@ -69,13 +60,9 @@ var archiveInfoCmd = &cobra.Command{
 	Long:  `Shows information about the current archive.`,
 	Run: func(c *cobra.Command, args []string) {
 		buck, err := bucks.GetLocalBucket()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		info, err := buck.ArchiveInfo()
-		if err != nil {
-			cmd.Fatal(err)
-		}
+		cmd.ErrCheck(err)
 		cmd.Message("Archive of cid %s has %d deals:\n", info.Archive.Cid, len(info.Archive.Deals))
 		var data [][]string
 		for _, d := range info.Archive.Deals {

@@ -6,13 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	cid "github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-merkledag/dagutils"
 	"github.com/textileio/textile/api/buckets/client"
 	"github.com/textileio/textile/cmd"
+	"golang.org/x/sync/errgroup"
 )
 
 func (b *Bucket) PullRemotePath(opts ...PathOption) (roots Roots, err error) {
@@ -131,28 +131,27 @@ looop:
 		return
 	}
 
-	errs := make(chan error)
 	if len(missing) > 0 {
-		var wg sync.WaitGroup
 		events <- PathEvent{
 			Path: pth,
 			Type: PathStart,
 		}
+		eg, gctx := errgroup.WithContext(context.Background())
 		for _, o := range missing {
-			wg.Add(1)
-			go func(o object) {
-				defer wg.Done()
+			o := o
+			eg.Go(func() error {
+				if gctx.Err() != nil {
+					return nil
+				}
 				if err := b.getFile(key, o.path, o.name, o.size, o.cid, events); err != nil {
-					errs <- err
-					return
+					return err
 				}
-				if err := b.repo.SetRemotePath(o.path, o.cid); err != nil {
-					errs <- err
-					return
-				}
-			}(o)
+				return b.repo.SetRemotePath(o.path, o.cid)
+			})
 		}
-		wg.Wait()
+		if err := eg.Wait(); err != nil {
+			return count, err
+		}
 		events <- PathEvent{
 			Path: pth,
 			Type: PathComplete,
@@ -246,20 +245,20 @@ func (b *Bucket) getFile(key, filePath, name string, size int64, c cid.Cid, even
 
 	progress := make(chan int64)
 	go func() {
-		ctx, cancel := b.clients.Ctx.Thread(GetFileTimeout)
-		defer cancel()
-		if err := b.clients.Buckets.PullPath(ctx, key, filePath, file, client.WithProgress(progress)); err != nil {
-			cmd.Fatal(err)
+		for up := range progress {
+			events <- PathEvent{
+				Path:     filePath,
+				Cid:      c,
+				Type:     FileProgress,
+				Size:     size,
+				Progress: up,
+			}
 		}
 	}()
-	for up := range progress {
-		events <- PathEvent{
-			Path:     filePath,
-			Cid:      c,
-			Type:     FileProgress,
-			Size:     size,
-			Progress: up,
-		}
+	ctx, cancel := b.clients.Ctx.Thread(GetFileTimeout)
+	defer cancel()
+	if err := b.clients.Buckets.PullPath(ctx, key, filePath, file, client.WithProgress(progress)); err != nil {
+		return err
 	}
 	events <- PathEvent{
 		Path:     filePath,

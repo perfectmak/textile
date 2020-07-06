@@ -12,9 +12,9 @@ import (
 	"github.com/textileio/uiprogress"
 )
 
-func getConfirm(label string, skip bool) local.ConfirmFunc {
+func getConfirm(label string, auto bool) local.ConfirmDiffFunc {
 	return func(diff []local.Change) bool {
-		if skip {
+		if auto {
 			return true
 		}
 		for _, c := range diff {

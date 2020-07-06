@@ -2,7 +2,7 @@ package local
 
 // --Buckets--
 //x RemoteBuckets
-// NewLocalBucket
+//x NewLocalBucket
 //x GetLocalBucket
 //
 // --Bucket--
@@ -14,9 +14,11 @@ package local
 //x DecryptLocalPath
 //x ListRemotePath
 //x PushLocalPath
-// AddRemoteCid
+//x AddRemoteCid
 //x PullRemotePath
-// ArchiveRemote
+//x ArchiveRemote
+//x ArchiveStatus
+//x ArchiveInfo
 
 import (
 	"context"

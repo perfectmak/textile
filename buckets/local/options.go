@@ -45,7 +45,7 @@ func WithExistingPathEvents(ch chan PathEvent) NewOption {
 }
 
 type pathOptions struct {
-	confirm ConfirmFunc
+	confirm ConfirmDiffFunc
 	force   bool
 	hard    bool
 	events  chan PathEvent
@@ -53,9 +53,9 @@ type pathOptions struct {
 
 type PathOption func(*pathOptions)
 
-type ConfirmFunc func([]Change) bool
+type ConfirmDiffFunc func([]Change) bool
 
-func WithConfirm(f ConfirmFunc) PathOption {
+func WithConfirm(f ConfirmDiffFunc) PathOption {
 	return func(args *pathOptions) {
 		args.confirm = f
 	}
@@ -75,6 +75,35 @@ func WithHard(b bool) PathOption {
 
 func WithPathEvents(ch chan PathEvent) PathOption {
 	return func(args *pathOptions) {
+		args.events = ch
+	}
+}
+
+type addOptions struct {
+	merge  SelectMergeFunc
+	events chan PathEvent
+}
+
+type SelectMergeFunc func(description string, isDir bool) (MergeStrategy, error)
+
+type MergeStrategy string
+
+const (
+	Skip    MergeStrategy = "Skip"
+	Merge                 = "Merge"
+	Replace               = "Replace"
+)
+
+type AddOption func(*addOptions)
+
+func WithSelectMerge(f SelectMergeFunc) AddOption {
+	return func(args *addOptions) {
+		args.merge = f
+	}
+}
+
+func WithAddEvents(ch chan PathEvent) AddOption {
+	return func(args *addOptions) {
 		args.events = ch
 	}
 }

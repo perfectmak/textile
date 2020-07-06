@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -146,6 +147,22 @@ func (b *Bucket) confRoot() (string, error) {
 		return "", ErrNotABucket
 	}
 	return filepath.Dir(filepath.Dir(conf)), nil
+}
+
+func (b *Bucket) containsPath(pth string) (c bool, err error) {
+	r, err := b.confRoot()
+	if err != nil {
+		return
+	}
+	ar, err := filepath.Abs(r)
+	if err != nil {
+		return
+	}
+	ap, err := filepath.Abs(pth)
+	if err != nil {
+		return
+	}
+	return strings.HasPrefix(ap, ar), nil
 }
 
 func (b *Bucket) getRemoteRoot() (cid.Cid, error) {

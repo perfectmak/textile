@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/textileio/dcrypto"
+	"golang.org/x/sync/errgroup"
 )
 
 func (b *Bucket) EncryptLocalPath(pth, password string, w io.Writer) error {
@@ -33,32 +34,26 @@ func (b *Bucket) EncryptLocalPath(pth, password string, w io.Writer) error {
 
 func (b *Bucket) DecryptLocalPath(pth, password string, w io.Writer) error {
 	reader, writer := io.Pipe()
-	errs := make(chan error)
-	go func() {
+	eg := new(errgroup.Group)
+	eg.Go(func() error {
 		ctx, cancel := b.clients.Ctx.Thread(GetFileTimeout)
 		defer cancel()
 		key := b.conf.Viper.GetString("key")
 		if err := b.clients.Buckets.PullPath(ctx, key, pth, writer); err != nil {
-			errs <- err
-			return
+			return err
 		}
-		if err := writer.Close(); err != nil {
-			errs <- err
-			return
-		}
-	}()
-	go func() {
+		return writer.Close()
+	})
+	eg.Go(func() error {
 		r, err := dcrypto.NewDecrypterWithPassword(reader, []byte(password))
 		if err != nil {
-			errs <- err
-			return
+			return err
 		}
 		defer r.Close()
 		if _, err := io.Copy(w, r); err != nil {
-			errs <- err
-			return
+			return err
 		}
-		close(errs)
-	}()
-	return <-errs
+		return nil
+	})
+	return eg.Wait()
 }
